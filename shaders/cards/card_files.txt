@@ -1,0 +1,7 @@
+# SDFs Deck — card registry
+# One filename per line, # comments ignored.
+card_01.hlsl
+card_02.hlsl
+card_03.hlsl
+card_04.hlsl
+card_05.hlsl

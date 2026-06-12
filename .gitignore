@@ -1,0 +1,12 @@
+build/
+out/
+.vs/
+CMakeUserPresets.json
+imgui.ini
+*.user
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+external/imgui/.git/

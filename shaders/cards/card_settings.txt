@@ -1,0 +1,7 @@
+# SDFs Deck card defaults
+# card params.x params.y params.z params.w transform.x transform.y transform.z transform.w style.x style.y style.z style.w color0.r color0.g color0.b color0.a color1.r color1.g color1.b color1.a
+card_01.hlsl 0.4 0.1 0 0 0 0 0 1 0 0 0.035 0 0 0 0 1 1 1 1 1
+card_02.hlsl 0.4 0.1 0 0 0 0 0 1 0 0 0.035 0 0 0 0 1 1 1 1 1
+card_03.hlsl 0.7 0.35 0 0.85 0 0 0 1 0 0 0.02 0 1 1 1 1 0 0 0 1
+card_04.hlsl 0.4 0.1 0 0 0 0 0 1 0 0 0.035 0 1 1 1 1 0 0 0 1
+card_05.hlsl 0.4 0.1 0 0 0 0 0 1 0 0 0.035 0 0 0 0 1 1 1 1 1
