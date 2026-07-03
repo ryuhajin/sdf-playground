@@ -1,246 +1,97 @@
 #include "../lib/sdf_common.hlsli"
 
-float2 tileFract(float2 uv, float2 scale, out float2 cell)
+// cellId 같은 2D 번호를 넣으면 0~1 사이의 가짜 랜덤값
+// 같은 cellId는 항상 같은 값을 반환하므로 타일 패턴이 프레임마다 흔들리지 않음
+float Hash21(float2 p)
 {
-    float2 scaled = uv * scale;
-    cell = floor(scaled);
-    return frac(scaled);
+    return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453123);
 }
 
-float gridLine(float2 localUv, float width)
+// 타일 내부에 대각선 삼각형 마스크를 만든다.
+// uv는 0~1 범위의 타일 내부 좌표.
+// uv.x > uv.y 쪽을 1
+float TriangleMask(float2 uv)
 {
-    float2 edgeDist = min(localUv, 1.0 - localUv);
-    float nearest = min(edgeDist.x, edgeDist.y);
-    return 1.0 - smoothstep(width, width * 1.8, nearest);
+    float d = uv.x - uv.y;
+
+    // 대각선 경계 주변을 살짝 부드럽게 처리한다.
+    return smoothstep(-0.01, 0.01, d);
 }
 
-float2 rotate2(float2 p, float angle)
+// 타일 경계선을 보여주는 마스크.
+// localUV가 0 또는 1에 가까우면 타일 가장자리다.
+float GridMask(float2 uv)
 {
-    float c = cos(angle);
-    float s = sin(angle);
-    return float2(c * p.x - s * p.y, s * p.x + c * p.y);
-}
+    float2 edgeDist = min(uv, 1.0 - uv);
+    float d = min(edgeDist.x, edgeDist.y);
 
-float oddRow(float row)
-{
-    return step(1.0, fmod(row, 2.0));
-}
-
-float panelMask(float2 p, float2 center, float2 halfSize)
-{
-    float2 edge = halfSize - abs(p - center);
-    return step(0.0, min(edge.x, edge.y));
-}
-
-float panelBorder(float2 p, float2 center, float2 halfSize)
-{
-    float2 q = abs(p - center) - halfSize;
-    float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-    float w = max(fwidth(d), 0.002);
-    return 1.0 - smoothstep(0.0, w * 2.0, abs(d));
-}
-
-float2 panelUv(float2 p, float2 center, float2 halfSize)
-{
-    return (p - center) / (halfSize * 2.0) + 0.5;
-}
-
-float3 sectionFract(float2 uv)
-{
-    float2 cell;
-    float2 localUv = tileFract(uv, float2(4.0, 4.0), cell);
-
-    float checker = frac(cell.x + cell.y * 0.5) * 0.08;
-    float3 color = float3(localUv.x, localUv.y, 0.22 + checker);
-
-    float grid = gridLine(localUv, 0.025);
-    color = lerp(color, float3(1.0, 1.0, 1.0), grid * 0.85);
-
-    float2 centerLine = abs(localUv - 0.5);
-    float cross = 1.0 - smoothstep(0.012, 0.024, min(centerLine.x, centerLine.y));
-    color = lerp(color, float3(0.05, 0.08, 0.12), cross * 0.45);
-
-    return color;
-}
-
-float3 sectionMatrix(float2 uv)
-{
-    float2 cell;
-    float2 localUv = tileFract(uv, float2(4.0, 4.0), cell);
-    float2 local = localUv * 2.0 - 1.0;
-
-    float angle = (cell.x + cell.y) * 0.35 + 0.7;
-    float2 q = rotate2(local, angle);
-
-    float barA = 1.0 - smoothstep(0.035, 0.055, abs(q.x));
-    float barB = 1.0 - smoothstep(0.035, 0.055, abs(q.y));
-    float diamond = 1.0 - smoothstep(0.48, 0.52, abs(q.x) + abs(q.y));
-    float motif = max(max(barA, barB) * 0.75, diamond);
-
-    float3 color = lerp(float3(0.08, 0.09, 0.12), float3(0.95, 0.70, 0.20), motif);
-    color += float3(localUv.x, localUv.y, 0.0) * 0.15;
-
-    float grid = gridLine(localUv, 0.020);
-    color = lerp(color, float3(0.92, 0.94, 1.0), grid * 0.65);
-
-    return color;
-}
-
-float3 sectionAnimation(float2 uv, float t)
-{
-    float2 cell;
-    float2 localUv = tileFract(uv, float2(5.0, 5.0), cell);
-    float2 local = localUv * 2.0 - 1.0;
-
-    float phase = dot(cell, float2(0.7, 1.1));
-    float spin = t * 1.3 + phase;
-    float2 q = rotate2(local, spin);
-
-    float pulse = 0.5 + 0.5 * sin(t * 2.2 + phase);
-    float radius = lerp(0.18, 0.42, pulse);
-    float ring = 1.0 - smoothstep(0.025, 0.045, abs(length(q) - radius));
-    float slash = 1.0 - smoothstep(0.025, 0.050, abs(q.x + q.y));
-    float motif = max(ring, slash * 0.65);
-
-    float3 low = float3(0.04, 0.08, 0.12);
-    float3 high = lerp(float3(0.25, 0.82, 1.0), float3(1.0, 0.34, 0.42), pulse);
-    float3 color = lerp(low, high, motif);
-
-    float grid = gridLine(localUv, 0.018);
-    color = lerp(color, float3(0.86, 0.94, 1.0), grid * 0.50);
-
-    return color;
-}
-
-float3 sectionOffset(float2 uv)
-{
-    float2 scale = float2(5.0, 4.0);
-    float row = floor(uv.y * scale.y);
-    float rowOdd = oddRow(row);
-
-    float2 shifted = uv * scale;
-    shifted.x += rowOdd * 0.5;
-
-    float2 localUv = frac(shifted);
-    float2 local = localUv * 2.0 - 1.0;
-
-    float brickBody = 1.0 - smoothstep(0.50, 0.56, max(abs(local.x), abs(local.y)));
-    float mortar = gridLine(localUv, 0.030);
-
-    float3 evenColor = float3(0.48, 0.12, 0.08);
-    float3 oddColor = float3(0.72, 0.20, 0.10);
-    float3 color = lerp(evenColor, oddColor, rowOdd) * brickBody;
-    color += float3(0.10, 0.08, 0.07);
-
-    float halfShiftMark = 1.0 - smoothstep(0.020, 0.040, abs(localUv.x - 0.5));
-    color = lerp(color, float3(1.0, 0.78, 0.35), halfShiftMark * rowOdd * 0.45);
-    color = lerp(color, float3(0.92, 0.88, 0.78), mortar * 0.85);
-
-    return color;
-}
-
-float truchetArc(float2 localUv)
-{
-    float dA = abs(length(localUv - float2(0.0, 0.0)) - 0.50) - 0.040;
-    float dB = abs(length(localUv - float2(1.0, 1.0)) - 0.50) - 0.040;
-    float d = min(dA, dB);
-    return 1.0 - smoothstep(0.0, 0.018, d);
-}
-
-float2 rotateTilePattern(float2 localUv, float index)
-{
-    float2 q = localUv - 0.5;
-
-    if (index < 0.5)
-    {
-        q = q;
-    }
-    else if (index < 1.5)
-    {
-        q = rotate2(q, HALF_PI);
-    }
-    else if (index < 2.5)
-    {
-        q = rotate2(q, PI);
-    }
-    else
-    {
-        q = rotate2(q, -HALF_PI);
-    }
-
-    return q + 0.5;
-}
-
-float3 sectionTruchet(float2 uv)
-{
-    float2 cell;
-    float2 localUv = tileFract(uv, float2(5.0, 5.0), cell);
-
-    float index = fmod(cell.x + cell.y * 2.0, 4.0);
-    float2 rotatedUv = rotateTilePattern(localUv, index);
-
-    float arc = truchetArc(rotatedUv);
-    float dotMark = 1.0 - smoothstep(0.050, 0.075, length(localUv - 0.5));
-
-    float tileTint = hash21(cell) * 0.10;
-    float3 color = float3(0.055 + tileTint, 0.070 + tileTint, 0.085 + tileTint);
-    color = lerp(color, float3(0.88, 0.88, 0.78), arc);
-    color = lerp(color, float3(0.28, 0.92, 0.62), dotMark * 0.55);
-
-    float grid = gridLine(localUv, 0.018);
-    color = lerp(color, float3(0.36, 0.42, 0.48), grid * 0.65);
-
-    return color;
+    return 1.0 - smoothstep(0.01, 0.02, d);
 }
 
 float4 main(PSIn i) : SV_Target
 {
-    float2 cardPos = fitUV(i.uv);
-    float2 p = applyCardShapeTransform(cardPos);
+    float2 uv = i.uv;
 
-    float3 color = float3(0.035, 0.040, 0.052);
+    // 전체 화면 10 x 10 타일
+    float2 tile = float2(10.0, 10.0);
+    float2 tiledUV = uv * tile;
 
-    float2 panel1Center = float2(-0.58, 0.48);
-    float2 panelHalf = float2(0.34, 0.34);
+    // cellId는 현재 픽셀이 속한 타일의 정수 번호
+    // 예: (0,0), (1,0), (2,0), ...
+    float2 cellId = floor(tiledUV);
 
-    float mask1 = panelMask(p, panel1Center, panelHalf);
-    float3 section1 = sectionFract(panelUv(p, panel1Center, panelHalf));
-    color = lerp(color, section1, mask1);
+    // localUV는 각 타일 안의 0~1 좌표
+    // 모든 타일이 같은 작은 uv 공간을 가짐
+    float2 localUV = frac(tiledUV);
 
-    float border1 = panelBorder(p, panel1Center, panelHalf);
-    color = lerp(color, float3(0.80, 0.88, 1.0), border1);
+    // cellId를 기반으로 0~1 사이 랜덤값 생성
+    // 타일마다 다른 값이 나오지만, 같은 타일 안에서는 같은 값
+    float random01 = Hash21(cellId);
 
-    float2 panel2Center = float2(0.0, 0.48);
-    float mask2 = panelMask(p, panel2Center, panelHalf);
-    float3 section2 = sectionMatrix(panelUv(p, panel2Center, panelHalf));
-    color = lerp(color, section2, mask2);
+    // 0~1 랜덤값을 0,1,2,3 네 가지 type으로 바꾸기
+    //
+    // random01 * 4.0 : 0~4 범위
+    // floor(...)     : 0,1,2,3 중 하나
+    float type = floor(random01 * 4.0);
 
-    float border2 = panelBorder(p, panel2Center, panelHalf);
-    color = lerp(color, float3(1.0, 0.76, 0.32), border2);
+    // type 0,1,2,3을 x/y 뒤집기 스위치로 분해
+    //
+    // type | flipX | flipY
+    //  0   |   0   |   0
+    //  1   |   1   |   0
+    //  2   |   0   |   1
+    //  3   |   1   |   1
+    //
+    // flipX는 0,1,0,1로 반복
+    float flipX = fmod(type, 2.0);
 
-    float2 panel3Center = float2(0.58, 0.48);
-    float mask3 = panelMask(p, panel3Center, panelHalf);
-    float3 section3 = sectionAnimation(panelUv(p, panel3Center, panelHalf), uCardTime);
-    color = lerp(color, section3, mask3);
+    // flipY는 0,0,1,1로 반복
+    float flipY = floor(type / 2.0);
 
-    float border3 = panelBorder(p, panel3Center, panelHalf);
-    color = lerp(color, float3(0.42, 0.92, 1.0), border3);
+    // if 없이 lerp로 x 좌표를 선택
+    // flipX가 0이면 localUV.x,
+    // flipX가 1이면 1.0 - localUV.x를 선택
+    float x = lerp(localUV.x, 1.0 - localUV.x, flipX);
 
-    float2 panel4Center = float2(-0.29, -0.34);
-    float mask4 = panelMask(p, panel4Center, panelHalf);
-    float3 section4 = sectionOffset(panelUv(p, panel4Center, panelHalf));
-    color = lerp(color, section4, mask4);
+    // if 없이 lerp로 y 좌표를 선택
+    // flipY가 0이면 localUV.y,
+    // flipY가 1이면 1.0 - localUV.y를 선택
+    float y = lerp(localUV.y, 1.0 - localUV.y, flipY);
 
-    float border4 = panelBorder(p, panel4Center, panelHalf);
-    color = lerp(color, float3(1.0, 0.42, 0.28), border4);
+    float2 tileUV = float2(x, y);
 
-    float2 panel5Center = float2(0.29, -0.34);
-    float mask5 = panelMask(p, panel5Center, panelHalf);
-    float3 section5 = sectionTruchet(panelUv(p, panel5Center, panelHalf));
-    color = lerp(color, section5, mask5);
+    // 변형된 tileUV에 같은 삼각형 마스크 하나만 적용
+    // tileUV가 뒤집혔기 때문에 타일마다 삼각형 방향이 달라 보인다
+    float tri = TriangleMask(tileUV);
 
-    float border5 = panelBorder(p, panel5Center, panelHalf);
-    color = lerp(color, float3(0.52, 1.0, 0.68), border5);
+    float3 white = float3(1.0, 1.0, 1.0);
+    float3 black = float3(0.0, 0.0, 0.0);
+
+    float3 color = lerp(white, black, tri);
+
+    // 타일 경계 그리기
+    float grid = GridMask(localUV);
+    color = lerp(color, float3(0.15, 0.15, 0.15), grid);
 
     return float4(color, 1.0);
 }
