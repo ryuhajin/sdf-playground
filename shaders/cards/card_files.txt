@@ -6,3 +6,4 @@ card_03.hlsl
 card_04.hlsl
 card_05.hlsl
 card_06.hlsl
+card_07.hlsl

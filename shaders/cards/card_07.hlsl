@@ -139,6 +139,60 @@ float3 sectionOffset(float2 uv)
     return color;
 }
 
+float truchetArc(float2 localUv)
+{
+    float dA = abs(length(localUv - float2(0.0, 0.0)) - 0.50) - 0.040;
+    float dB = abs(length(localUv - float2(1.0, 1.0)) - 0.50) - 0.040;
+    float d = min(dA, dB);
+    return 1.0 - smoothstep(0.0, 0.018, d);
+}
+
+float2 rotateTilePattern(float2 localUv, float index)
+{
+    float2 q = localUv - 0.5;
+
+    if (index < 0.5)
+    {
+        q = q;
+    }
+    else if (index < 1.5)
+    {
+        q = rotate2(q, HALF_PI);
+    }
+    else if (index < 2.5)
+    {
+        q = rotate2(q, PI);
+    }
+    else
+    {
+        q = rotate2(q, -HALF_PI);
+    }
+
+    return q + 0.5;
+}
+
+float3 sectionTruchet(float2 uv)
+{
+    float2 cell;
+    float2 localUv = tileFract(uv, float2(5.0, 5.0), cell);
+
+    float index = fmod(cell.x + cell.y * 2.0, 4.0);
+    float2 rotatedUv = rotateTilePattern(localUv, index);
+
+    float arc = truchetArc(rotatedUv);
+    float dotMark = 1.0 - smoothstep(0.050, 0.075, length(localUv - 0.5));
+
+    float tileTint = hash21(cell) * 0.10;
+    float3 color = float3(0.055 + tileTint, 0.070 + tileTint, 0.085 + tileTint);
+    color = lerp(color, float3(0.88, 0.88, 0.78), arc);
+    color = lerp(color, float3(0.28, 0.92, 0.62), dotMark * 0.55);
+
+    float grid = gridLine(localUv, 0.018);
+    color = lerp(color, float3(0.36, 0.42, 0.48), grid * 0.65);
+
+    return color;
+}
+
 float4 main(PSIn i) : SV_Target
 {
     float2 cardPos = fitUV(i.uv);
@@ -179,6 +233,14 @@ float4 main(PSIn i) : SV_Target
 
     float border4 = panelBorder(p, panel4Center, panelHalf);
     color = lerp(color, float3(1.0, 0.42, 0.28), border4);
+
+    float2 panel5Center = float2(0.29, -0.34);
+    float mask5 = panelMask(p, panel5Center, panelHalf);
+    float3 section5 = sectionTruchet(panelUv(p, panel5Center, panelHalf));
+    color = lerp(color, section5, mask5);
+
+    float border5 = panelBorder(p, panel5Center, panelHalf);
+    color = lerp(color, float3(0.52, 1.0, 0.68), border5);
 
     return float4(color, 1.0);
 }
