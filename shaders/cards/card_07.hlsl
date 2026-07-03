@@ -81,6 +81,32 @@ float3 sectionMatrix(float2 uv)
     return color;
 }
 
+float3 sectionAnimation(float2 uv, float t)
+{
+    float2 cell;
+    float2 localUv = tileFract(uv, float2(5.0, 5.0), cell);
+    float2 local = localUv * 2.0 - 1.0;
+
+    float phase = dot(cell, float2(0.7, 1.1));
+    float spin = t * 1.3 + phase;
+    float2 q = rotate2(local, spin);
+
+    float pulse = 0.5 + 0.5 * sin(t * 2.2 + phase);
+    float radius = lerp(0.18, 0.42, pulse);
+    float ring = 1.0 - smoothstep(0.025, 0.045, abs(length(q) - radius));
+    float slash = 1.0 - smoothstep(0.025, 0.050, abs(q.x + q.y));
+    float motif = max(ring, slash * 0.65);
+
+    float3 low = float3(0.04, 0.08, 0.12);
+    float3 high = lerp(float3(0.25, 0.82, 1.0), float3(1.0, 0.34, 0.42), pulse);
+    float3 color = lerp(low, high, motif);
+
+    float grid = gridLine(localUv, 0.018);
+    color = lerp(color, float3(0.86, 0.94, 1.0), grid * 0.50);
+
+    return color;
+}
+
 float4 main(PSIn i) : SV_Target
 {
     float2 cardPos = fitUV(i.uv);
@@ -105,6 +131,14 @@ float4 main(PSIn i) : SV_Target
 
     float border2 = panelBorder(p, panel2Center, panelHalf);
     color = lerp(color, float3(1.0, 0.76, 0.32), border2);
+
+    float2 panel3Center = float2(0.58, 0.48);
+    float mask3 = panelMask(p, panel3Center, panelHalf);
+    float3 section3 = sectionAnimation(panelUv(p, panel3Center, panelHalf), uCardTime);
+    color = lerp(color, section3, mask3);
+
+    float border3 = panelBorder(p, panel3Center, panelHalf);
+    color = lerp(color, float3(0.42, 0.92, 1.0), border3);
 
     return float4(color, 1.0);
 }
