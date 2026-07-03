@@ -21,6 +21,11 @@ float2 rotate2(float2 p, float angle)
     return float2(c * p.x - s * p.y, s * p.x + c * p.y);
 }
 
+float oddRow(float row)
+{
+    return step(1.0, fmod(row, 2.0));
+}
+
 float panelMask(float2 p, float2 center, float2 halfSize)
 {
     float2 edge = halfSize - abs(p - center);
@@ -107,6 +112,33 @@ float3 sectionAnimation(float2 uv, float t)
     return color;
 }
 
+float3 sectionOffset(float2 uv)
+{
+    float2 scale = float2(5.0, 4.0);
+    float row = floor(uv.y * scale.y);
+    float rowOdd = oddRow(row);
+
+    float2 shifted = uv * scale;
+    shifted.x += rowOdd * 0.5;
+
+    float2 localUv = frac(shifted);
+    float2 local = localUv * 2.0 - 1.0;
+
+    float brickBody = 1.0 - smoothstep(0.50, 0.56, max(abs(local.x), abs(local.y)));
+    float mortar = gridLine(localUv, 0.030);
+
+    float3 evenColor = float3(0.48, 0.12, 0.08);
+    float3 oddColor = float3(0.72, 0.20, 0.10);
+    float3 color = lerp(evenColor, oddColor, rowOdd) * brickBody;
+    color += float3(0.10, 0.08, 0.07);
+
+    float halfShiftMark = 1.0 - smoothstep(0.020, 0.040, abs(localUv.x - 0.5));
+    color = lerp(color, float3(1.0, 0.78, 0.35), halfShiftMark * rowOdd * 0.45);
+    color = lerp(color, float3(0.92, 0.88, 0.78), mortar * 0.85);
+
+    return color;
+}
+
 float4 main(PSIn i) : SV_Target
 {
     float2 cardPos = fitUV(i.uv);
@@ -139,6 +171,14 @@ float4 main(PSIn i) : SV_Target
 
     float border3 = panelBorder(p, panel3Center, panelHalf);
     color = lerp(color, float3(0.42, 0.92, 1.0), border3);
+
+    float2 panel4Center = float2(-0.29, -0.34);
+    float mask4 = panelMask(p, panel4Center, panelHalf);
+    float3 section4 = sectionOffset(panelUv(p, panel4Center, panelHalf));
+    color = lerp(color, section4, mask4);
+
+    float border4 = panelBorder(p, panel4Center, panelHalf);
+    color = lerp(color, float3(1.0, 0.42, 0.28), border4);
 
     return float4(color, 1.0);
 }
