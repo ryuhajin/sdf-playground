@@ -8,3 +8,5 @@ card_05.hlsl
 card_06.hlsl
 card_07.hlsl
 card_08.hlsl
+card_09.hlsl
+card_10.hlsl

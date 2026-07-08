@@ -4,12 +4,15 @@
 // ============================================================
 // PerFrame
 // ------------------------------------------------------------
-// 한 프레임 동안 모든 SDF 카드가 공유하는 값
-// 시간, 해상도, 마우스, 렌더링 모드, ViewProjection처럼
-// 카드마다 달라지지 않는 전역 상태
+// 한 프레임 동안 모든 카드가 함께 쓰는 값
+// 카드마다 달라지는 값이 아니라, 앱 전체에서 한 번 정해져 모든 셰이더에 전달
 // ============================================================
 cbuffer PerFrame : register(b0) {
-    float4 uTimeRes;     // x=time, y=dt, z=resX, w=resY
+    // uTimeRes.x = sim_time: 앱이 시작된 뒤 흐른 시뮬레이션 시간(초)입니다. 일시정지 중에는 멈춤
+    // uTimeRes.y = dt: delta time입니다. 바로 전 프레임에서 이번 프레임까지 걸린 시간(초)
+    // uTimeRes.z = width: swapchain/backbuffer의 가로 픽셀 수
+    // uTimeRes.w = height: swapchain/backbuffer의 세로 픽셀 수
+    float4 uTimeRes;
     float4 uMouse;       // xy=mouse, zw=clicks
     int4   uRenderFlags; // x=renderMode, y=animMode, z=paused, w=reserved
     row_major float4x4 uViewProj;
@@ -18,9 +21,8 @@ cbuffer PerFrame : register(b0) {
 // ============================================================
 // PerCard
 // ------------------------------------------------------------
-// 카드 하나를 그릴 때마다 갱신되는 값
-// 같은 SDF 셰이더를 쓰더라도 카드별 위치, 색, 스타일,
-// 도형 transform, 파라미터를 다르게 줄 수 있다.
+// 카드 한 장을 그릴 때마다 갱신되는 값
+// 같은 셰이더를 쓰더라도 카드별 위치, 시간, 변형, 색상 등을 다르게 줄 수 있음
 // ============================================================
 cbuffer PerCard : register(b1) {
     row_major float4x4 uWorld;
