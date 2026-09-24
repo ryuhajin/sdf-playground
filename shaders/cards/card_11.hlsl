@@ -85,26 +85,121 @@ float Fbm2D(float2 st)
     return value;
 }
 
+// ---------------------------------------------------------------------------
+// card 11 · Topographic Map (기본) / Heightmap Terrain (CARD11_MODE 0)
+// fBm 값을 "높이"로 읽는다.
+// - Topographic Map: 같은 높이를 잇는 등고선만 그리고 지형을 천천히 흘려보낸다.
+// - Heightmap Terrain: 이웃 위치와의 높이 차이로 노멀을 구해 방향광으로 셰이딩한다.
+// 이전 버전(fBm 밝기 그대로 출력)은 card_11_fbm_backup.hlsl에 보관했다.
+// ---------------------------------------------------------------------------
+
+// 0 = 흑백 라이팅, 1 = 높이별 색(물·모래·풀·바위·눈)
+#define TERRAIN_COLOR 1
+
+float TerrainHeight(float2 p)
+{
+    // 카드 좌표 p를 fBm 좌표로 바꿔 0..1 높이를 얻는다.
+    return Fbm2D(p * 1.4 + float2(3.7, 1.3));
+}
+
+float3 TerrainNormal(float2 p, float heightScale)
+{
+    // 전방 차분(finite difference): x, y로 아주 조금 옮긴 위치의 높이와 비교해 기울기를 구한다.
+    // 기울기가 크면 노멀이 옆으로 눕고, 평평하면 위(z)를 향한다.
+    // e가 너무 작으면 가장 촘촘한 옥타브까지 그대로 잡혀 표면이 자글거린다.
+    const float e = 0.008;
+    float h = TerrainHeight(p);
+    float hx = TerrainHeight(p + float2(e, 0.0));
+    float hy = TerrainHeight(p + float2(0.0, e));
+    return normalize(float3(-(hx - h) * heightScale, -(hy - h) * heightScale, e));
+}
+
+// 0 = Heightmap Terrain, 1 = Topographic Map
+#define CARD11_MODE 1
+
+float4 TopographicMap(float2 p, float t)
+{
+    // fBm 높이의 등고선(같은 높이를 잇는 선)만 그린다.
+    // 좌표를 천천히 흘려보내 지형이 한 방향으로 흘러가듯 움직인다.
+    // 등고선은 촘촘한 옥타브까지 쓰면 작은 고리가 너무 많이 생긴다.
+    // 그래서 앞의 4옥타브만 더해 큰 지형 흐름만 남긴다.
+    float2 q = (p + float2(t * 0.035, t * 0.02)) * 1.4 + float2(3.7, 1.3);
+    float h = 0.0;
+    float amp = 0.5;
+    [unroll]
+    for (int o = 0; o < 4; ++o)
+    {
+        h += amp * Noise2D(q);
+        q *= 2.0;
+        amp *= 0.5;
+    }
+    h /= 0.9375; // 4옥타브 진폭 합(0.5+0.25+0.125+0.0625)으로 나눠 0..1로 맞춘다
+
+    // 높이를 LEVELS 단계로 나누고, 각 단계 경계(정수 값)에 선을 긋는다.
+    // fwidth로 화면 픽셀 크기에 맞춘 두께를 써서 어디서든 선 굵기가 일정하다.
+    const float LEVELS = 20.0;
+    float v = h * LEVELS;
+    float dv = max(fwidth(v), 1e-4);
+    float dist = abs(frac(v + 0.5) - 0.5);          // 가장 가까운 등고선까지의 거리(단계 단위)
+
+    // 5단계마다 굵은 주곡선(index contour), 나머지는 얇은 계곡선
+    float major = step(abs(fmod(floor(v + 0.5), 5.0)), 0.5);
+    float width = lerp(0.9, 1.8, major);
+    float contour = 1.0 - smoothstep(width * 0.5 * dv, (width * 0.5 + 1.0) * dv, dist);
+
+    // 높을수록 선을 밝게 해서 봉우리가 도드라져 보이게 한다.
+    float bright = lerp(0.45, 1.0, smoothstep(0.35, 0.75, h));
+    float lineCol = contour * bright * lerp(0.75, 1.0, major);
+
+    // 아주 옅은 높이 톤을 깔아 선 사이의 기복을 느끼게 한다.
+    float tint = smoothstep(0.30, 0.80, h) * 0.08;
+    return float4(saturate(lineCol + tint).xxx, 1.0);
+}
+
 float4 main(PSIn i) : SV_Target
 {
-    // GLSL의 gl_FragCoord.xy / u_resolution.xy에 해당한다.
-    // 이 프로젝트에서는 pixel shader 입력 i.uv가 이미 0..1 화면 좌표다.
-    float2 st = i.uv;
+    float2 p = fitUV(i.uv);
+    float t = uCardTime;
 
-    // 화면이 가로로 넓거나 세로로 길어도 noise가 늘어나 보이지 않도록
-    // 원문처럼 x축에 화면 비율을 곱한다.
-    float aspect = uTimeRes.z / max(uTimeRes.w, 1.0);
-    st.x *= aspect;
+#if CARD11_MODE == 1
+    return TopographicMap(p, t);
+#endif
 
-    // baseScale은 첫 octave의 전체 무늬 크기다.
-    // 값이 작으면 큰 덩어리가 보이고, 값이 크면 더 촘촘한 무늬부터 시작한다.
-    float baseScale = 3.0;
+    // 1단계: 높이. 물 높이(waterLevel) 아래는 평평한 수면으로 자른다.
+    const float waterLevel = 0.47;
+    float h = TerrainHeight(p);
+    bool water = h < waterLevel;
 
-    // 2D FBM은 화면의 각 픽셀 위치마다 Fbm2D(st)를 계산해서 밝기로 사용한다.
-    // 1D 그래프에서는 y = noise(x)였지만,
-    // 여기서는 color = noise(float2(x, y))라서 화면 전체가 질감으로 채워진다.
-    float n = Fbm2D(st * baseScale);
+    // 2단계: 노멀. heightScale이 클수록 지형이 가파르게 보인다. 수면은 위를 향하는 평면이다.
+    float3 n = water ? float3(0.0, 0.0, 1.0) : TerrainNormal(p, 0.7);
 
-    float3 color = float3(n, n, n);
-    return float4(saturate(color), 1.0);
+    // 3단계: 방향광. 태양이 8초에 한 바퀴 돌며 비스듬히 비춰 명암이 바뀐다.
+    float a = t * TWO_PI / 8.0;
+    float3 L = normalize(float3(cos(a), sin(a), 0.75));
+    float diffuse = saturate(dot(n, L));
+
+#if TERRAIN_COLOR
+    // 높이별 색 램프
+    float3 albedo = lerp(float3(0.78, 0.72, 0.52), float3(0.30, 0.52, 0.22), smoothstep(0.48, 0.52, h)); // 모래 → 풀
+    albedo = lerp(albedo, float3(0.45, 0.40, 0.36), smoothstep(0.58, 0.63, h));                          // 바위
+    albedo = lerp(albedo, float3(0.95, 0.95, 0.97), smoothstep(0.66, 0.70, h));                          // 눈
+    float3 waterCol = lerp(float3(0.05, 0.16, 0.30), float3(0.15, 0.40, 0.55), smoothstep(0.30, waterLevel, h));
+    float3 col = water ? waterCol * (0.6 + 0.4 * diffuse) : albedo * (0.18 + 0.82 * diffuse);
+#else
+    // 흑백: 수면은 어두운 회색, 지형은 라이팅 명암 + 높이에 따라 조금 밝게
+    float lit = 0.10 + 0.90 * diffuse;
+    float3 col = water ? (0.10 + 0.10 * smoothstep(0.30, waterLevel, h)).xxx
+                       : (lit * lerp(0.75, 1.0, smoothstep(waterLevel, 0.7, h))).xxx;
+#endif
+
+    // 4단계: 해안선. 물 경계를 한 픽셀 폭으로 부드럽게 잇는다.
+    float shore = 1.0 - smoothstep(0.0, fwidth(h) * 1.5, abs(h - waterLevel));
+    col = lerp(col, col * 0.6, shore);
+
+    // 아래 return 줄을 하나씩 주석 해제하면 단계별 결과를 볼 수 있다.
+    // return float4(h.xxx, 1.0);                 // 1단계: 높이(fBm 원본)
+    // return float4(n * 0.5 + 0.5, 1.0);         // 2단계: 노멀 (노멀맵처럼 보인다)
+    // return float4(diffuse.xxx, 1.0);           // 3단계: 방향광 명암
+
+    return float4(saturate(col), 1.0);
 }

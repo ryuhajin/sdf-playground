@@ -1,5 +1,13 @@
 # AI Agent Guide
 
+## Card coordinate warning
+
+Card shaders draw on a square card surface. Do not add backbuffer aspect
+correction like `p.x *= uTimeRes.z / uTimeRes.w` after `fitUV(i.uv)` or
+`cardUVToShapePos(i.uv)`. That pattern is for full-screen GLSL ports, not this
+card coordinate system, and it distorts circles and equilateral triangles. See
+`docs/CARD_AUTHORING.md` for the full coordinate rule.
+
 이 문서는 AI 에이전트나 미래의 작업자가 이 저장소를 빠르게 이해하고 안전하게 수정하기 위한 작업 가이드입니다. GitHub 방문자용 소개는 루트의 `README.md`를 기준으로 합니다.
 
 ## 저장소 목적

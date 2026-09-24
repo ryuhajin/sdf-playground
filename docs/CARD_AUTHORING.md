@@ -44,6 +44,22 @@ return mask(distance);
 - `applyCardShapeTransform(cardPos)` applies ImGui Transform X/Y, Rotation, and Scale.
 - `p` is the coordinate you pass to SDF shape functions.
 
+### Square Card Surface Coordinates
+
+Card pixel shaders run on a square card surface. After `fitUV(i.uv)`,
+`cardUVToShapePos(i.uv)`, or `applyCardShapeTransform(...)`, do not apply
+backbuffer aspect correction such as:
+
+```hlsl
+float aspect = uTimeRes.z / max(uTimeRes.w, 1.0);
+p.x *= aspect;
+```
+
+That correction is useful when porting full-screen GLSL examples that use
+`gl_FragCoord.xy / u_resolution.xy`, but it is wrong for this project's card
+surface. The card is already square in local coordinates, so scaling only `x`
+will stretch circles, squares, and equilateral triangles into distorted shapes.
+
 ## Mask And Color Helpers
 
 Use one of these four helpers depending on what value you have.
