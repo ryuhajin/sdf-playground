@@ -149,8 +149,3 @@ sdf-playground/
 - [Inigo Quilez — 2D distance functions](https://iquilezles.org/articles/distfunctions2d/) · [3D distance functions](https://iquilezles.org/articles/distfunctions/) · [smooth minimum](https://iquilezles.org/articles/smin/)
 - [The Book of Shaders](https://thebookofshaders.com/) — 랜덤·노이즈(ch.10~11), 셀룰러 노이즈(ch.12), fBm(ch.13: card_11의 원본 예제)
 - [Dear ImGui](https://github.com/ocornut/imgui)
-
-## 관련 프로젝트
-
-- [VolumetricCloud](https://github.com/ryuhajin/VolumetricCloud) — HLSL 레이마칭으로 만든 대규모 볼류메트릭 구름과 물리 대기
-- [WaterShader](https://github.com/ryuhajin/WaterShader) — Sine wave·normal map·Fresnel 반사로 만든 스타일라이즈드 수면 셰이더

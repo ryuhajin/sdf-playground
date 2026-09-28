@@ -11,7 +11,7 @@
 기존 README에는 카드 목록·스크린샷·동작 원리 설명이 없었고, 세 포트폴리오 저장소의 README 구조가 서로 달랐다.
 
 ## 작업 항목
-- [x] 공통 섹션 순서(개요 → 스크린샷 → 기능 → 구현 포인트 → 빌드와 실행 → 조작 → 구조 → 문서 → 참고 → 관련 프로젝트)로 README 재작성
+- [x] 공통 섹션 순서(개요 → 스크린샷 → 기능 → 구현 포인트 → 빌드와 실행 → 조작 → 구조 → 문서 → 참고 자료)로 README 재작성
 - [x] 카드 01~13 목록 표, ImGui 패널 표, 핫 리로드 흐름도 추가
 - [ ] `docs/images/`에 스크린샷 추가 (`hero.png`, `card-05-metaball.png`, `card-10-dissolve.png`, `card-11-topographic.png`, `card-12-volume.png`)
 
