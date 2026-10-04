@@ -21,7 +21,7 @@ SDF 함수(원·박스·별), 반복·회전·극좌표 변환, 부드러운 합
 | 분야 | 절차적 셰이더 · 2D/3D SDF · 노이즈 |
 | 핵심 기술 | SDF 도형·연산자(smooth min), 도메인 반복·극좌표, Value/Gradient/Simplex 노이즈, fBm, Voronoi, sphere tracing |
 | 렌더 방식 | 카드마다 쿼드 한 장 + 카드별 픽셀 셰이더, coverflow 3D 배치 |
-| 개발 도구 | 파일 변경 이벤트 기반 핫 리로드, Dear ImGui 파라미터 패널, 카드 설정 저장 |
+| 개발 도구 | 파일 변경 이벤트 기반 핫 리로드, Dear ImGui 패널(카드 전환·애니메이션 제어, 파라미터는 일부 카드만 반영), 카드 설정 저장 |
 | 상태 | 카드 01~13 구현, 계속 추가 중 |
 
 ## 스크린샷
@@ -38,8 +38,9 @@ SDF 함수(원·박스·별), 반복·회전·극좌표 변환, 부드러운 합
 - **카드 덱**: 13장의 SDF 카드를 coverflow로 넘겨 보며 비교합니다. 가운데 카드가 편집 대상입니다.
 - **셰이더 핫 리로드**: `.hlsl`/`.hlsli`를 저장하면 실행 중에 다시 컴파일합니다. 오류가 나면 마지막 정상 셰이더를 유지하고 오류 창을 띄웁니다.
 - **런타임 파라미터**: 카드별 `Param.xyzw`, 이동·회전·크기, Fill/Stroke 스타일과 두 색을 ImGui로 조절합니다.
+  ※ 현재 셰이더에 반영되는 값은 `Param.x`(card 05), Transform(card 01~05·10), 렌더 모드와 두 색(card 02)뿐입니다. `Param.y~w`와 Fill/Stroke 스타일은 셰이더에서 쓰지 않습니다.
 - **설정 저장**: 카드별 값을 `shaders/cards/card_settings.txt`에 저장하고 다시 불러옵니다.
-- **애니메이션**: Pulse/Sine/Bounce/Oscillate 모드, 일시정지, 시간 배율. 카드는 가운데 슬롯에 도착했을 때부터 자기 시간을 누적합니다.
+- **애니메이션**: Pulse/Sine/Bounce/Oscillate 모드(현재 셰이더 미반영), 일시정지, 시간 배율. 카드는 가운데 슬롯에 도착했을 때부터 자기 시간을 누적합니다.
 - **공통 SDF 라이브러리**: 도형·연산자·변환·마스크·색·애니메이션 HLSLI를 모든 카드가 공유합니다.
 
 ### 카드 목록
@@ -117,9 +118,9 @@ cmake --build --preset debug      # Release는 --preset release
 
 | "SDFs Deck" 패널 | 내용 |
 |---|---|
-| Render | GrayScale / Color × Hard / Gradient 렌더 모드, 배경색 |
-| Cards | `<<` `>>` 이동, 편집 중인 카드, `Param.x~w`, Transform(X/Y·회전·크기), Style(Fill/Stroke/둘 다, Edge Softness, Stroke Width, Color 0/1), Save/Load/Reset |
-| Animation | 애니메이션 모드, 일시정지, 시간 배율, 누적 시간 |
+| Render | GrayScale / Color × Hard / Gradient 렌더 모드(card 02만 반영), 배경색 |
+| Cards | `<<` `>>` 이동, 편집 중인 카드, `Param.x~w`(`Param.x`만 card 05에 반영), Transform(X/Y·회전·크기, card 01~05·10에 반영), Style(Fill/Stroke/둘 다, Edge Softness, Stroke Width: 현재 셰이더 미반영 / Color 0/1: card 02에 반영), Save/Load/Reset |
+| Animation | 애니메이션 모드(현재 셰이더 미반영), 일시정지, 시간 배율, 누적 시간 |
 | Coverflow tuning | ±1/±2 카드의 간격·yaw·깊이·크기, 표시 범위, 보간 속도 |
 
 ## 프로젝트 구조
