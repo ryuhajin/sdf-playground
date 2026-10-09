@@ -1,96 +1,99 @@
-# SDF Lab Cards
+# sdf-playground — SDF Lab Cards
 
-DirectX 11과 HLSL로 Signed Distance Field(SDF)를 학습하고 실험하기 위해 만든 카드형 shader 앱입니다. 여러 개의 SDF 카드를 coverflow 형태로 넘기면서, 각 카드의 shader와 파라미터를 빠르게 확인할 수 있습니다.
+> DirectX 11과 HLSL로 Signed Distance Field(SDF)를 카드 한 장씩 실험하고, coverflow로 넘겨 보며 실시간으로 수정하는 셰이더 학습 앱
+
+![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
+![DirectX 11](https://img.shields.io/badge/DirectX-11-107C10)
+![HLSL](https://img.shields.io/badge/HLSL-SM%205.0-5C2D91)
+![Windows](https://img.shields.io/badge/Windows-Win32-0078D6?logo=windows&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-3.20%2B-064F8C?logo=cmake&logoColor=white)
+
+**프로젝트 페이지** · [ryuhajin.github.io/projects/sdfs](https://ryuhajin.github.io/projects/sdfs/) &nbsp;|&nbsp; **시연 영상** · [YouTube](https://youtu.be/Sd6XO_kqANc)
+
+![coverflow로 펼친 SDF 카드 덱, 가운데 카드는 3D Voronoi 볼륨](docs/images/cover.webp)
 
 ## 프로젝트 개요
 
-SDF Lab Cards는 HLSL shader 안에서 원, 박스, 별, 반복, 회전, 부드러운 합성 같은 SDF 함수들을 직접 조합해보며 SDF 개념을 익히기 위한 작은 Windows 데스크톱 앱입니다. 공통 HLSLI 라이브러리를 나누어 관리하고, shader hot reload를 통해 수정 결과를 실행 중에 빠르게 확인하는 흐름을 목표로 합니다.
+SDF(Signed Distance Field)를 익히기 위해, 기법 하나를 **카드 한 장 = 픽셀 셰이더 한 개**에 담아 13장으로 쌓은 학습 앱입니다.
+카드를 좌우로 넘겨 비교하고, 셰이더 파일을 저장하면 실행 중인 앱에 바로 반영됩니다.
 
-목표는 다음과 같습니다.
-
-- SDF 함수 조합을 카드 단위로 빠르게 실험하기
-- HLSL/HLSLI 파일을 수정하고 실행 중에 hot reload로 바로 확인하기
-- ImGui 패널에서 카드별 파라미터와 transform/style 값을 조정하기
-- coverflow UI로 여러 shader 카드를 넘겨보며 비교하기
-
-## 주요 기능
-
-- DirectX 11 기반 카드 렌더링
-- HLSL pixel shader 카드 시스템
-- HLSLI 공통 SDF 라이브러리
-- shader 파일 변경 감지 및 hot reload
-- Dear ImGui 기반 런타임 컨트롤 패널
-- 카드별 파라미터, transform, fill/stroke style 조정
-
-## 단축키
-
-| 키 | 동작 |
+| 한눈에 보기 | |
 |---|---|
-| `← / →` | 이전/다음 카드로 이동 |
-| `Space` | 일시정지/재개 |
-| `Esc` | 종료 |
+| 분야 | 절차적 셰이더 · 2D/3D SDF · 노이즈 |
+| 핵심 기술 | SDF 도형·연산자(smooth min), 도메인 반복·극좌표, Value/Gradient/Simplex 노이즈, fBm, Voronoi, sphere tracing |
+| 렌더 방식 | 카드마다 쿼드 한 장 + 카드별 픽셀 셰이더, coverflow 3D 배치 |
+| 개발 도구 | 파일 변경 이벤트 기반 핫 리로드, Dear ImGui 패널(카드 전환·애니메이션 제어, 파라미터는 일부 카드만 반영), 카드 설정 저장 |
+| 상태 | 카드 01~13 구현, 계속 추가 중 |
 
-## 사용 기술과 라이브러리
+## 카드 목록
 
-- Windows / Win32
-- DirectX 11
-- HLSL / HLSLI
-- Dear ImGui, vendored at `external/imgui`
-- CMake
-- Visual Studio 2022
+| 카드 | 이름 | 주제 | 내용 |
+|---|---|---|---|
+| 01 | Repetition | 도메인 반복 | 반복한 세로 줄을 움직이는 두 사인 곡선 사이에 가둠 |
+| 02 | Dot Grid | 거리장 변형 | 움직이는 원의 거리장이 주변 점 격자를 밀고 당김 |
+| 03 | Polar Rings | 극좌표 | 원 둘레를 16칸으로 나누고 칸 번호 기반 파동이 돌아감 |
+| 04 | Tiling | 격자 인덱스 애니메이션 | 6×6 원 격자의 행·열이 easing으로 차례로 밀림 |
+| 05 | Smooth Union | 부드러운 합성 | 공전하는 두 원을 smooth min으로 합친 메타볼 (`Param.x` = k) |
+| 06 | Pivot & Rotation | 2D 변환 | 이동·크기·회전과 pivot 기준 로컬 좌표, 회전하는 십자 |
+| 07 | Truchet | 결정론적 난수 | 10×10 칸마다 해시로 대각 삼각형을 무작위 뒤집기 |
+| 08 | Glitch | 2D 해시 | 행 단위 글리치: 무작위 속도 스크롤과 RGB 색 번짐 |
+| 09 | Domain Warp | Value / Gradient 노이즈 | 두 노이즈 비교, 노이즈로 회전하는 선 패턴과 번짐 |
+| 10 | Triangle Dissolve | Simplex 노이즈 | 겹친 삼각형 경계를 3D simplex 노이즈로 흩어 불씨처럼 사라짐 |
+| 11 | Topographic Map | fBm 지형 | value noise 6겹 fBm. 등고선 지도 모드와 높이 → 법선 → 회전 태양 조명 모드 |
+| 12 | Volumetric Voronoi | 볼륨 레이마칭 | 구를 sphere tracing으로 찾고 내부 3D Voronoi 밀도를 24걸음 누적, 궤도 카메라 |
+| 13 | Raymarch 3D | 3D SDF 레이마칭 | 직육면체를 레이마칭으로 그리고 Lambert 조명. 회전 순서(XYZ/ZYX), 자전과 공전, 월드·로컬 축 |
 
-Dear ImGui는 submodule이 아니라 `external/imgui` 아래에 소스가 포함된 vendored dependency로 관리합니다.
+## 빌드와 실행
 
-## HLSLI 라이브러리
-
-`shaders/lib` 아래의 HLSLI 파일들은 카드 shader가 공유하는 SDF 도구 모음입니다.
-
-- `sdf_common.hlsli`: 공통 입력 구조와 좌표 변환 helper
-- `sdf_cbuffers.hlsli`: per-frame/per-card constant buffer 정의
-- `sdf_mask.hlsli`: fill, stroke, soft mask 처리
-- `sdf_color.hlsli`: mask 기반 색상과 palette 처리
-- `sdf_shapes.hlsli`: 기본 SDF shape 함수
-- `sdf_operators.hlsli`: union, subtract, intersection, smooth min/max 등 조합 연산
-- `sdf_transform.hlsli`: rotate, scale, repeat, mirror, polar/kaleido 계열 변환
-- `sdf_animation.hlsli`: 시간 기반 animation helper
-
-## 요구사항
-
-- Windows 10 또는 Windows 11
-- Visual Studio 2022
-- Visual Studio C++ workload
-- Windows 10/11 SDK
-- CMake 3.20 이상
-
-## 빌드
-
-프로젝트 루트에서 다음 명령을 실행합니다.
+**요구 환경**: Windows 10/11, Visual Studio 2022 (C++ 데스크톱 개발), Windows 10/11 SDK, CMake 3.20+
 
 ```powershell
+git clone https://github.com/ryuhajin/sdf-playground.git
+cd sdf-playground
 cmake --preset vs2022-x64
-cmake --build --preset debug
+cmake --build --preset debug      # Release는 --preset release
+.\out\bin\Debug\SDFs.exe
 ```
 
-빌드 산출물은 `out/` 아래에 생성됩니다. `out/`, `.vs/`, `imgui.ini` 같은 로컬 생성 파일은 git에 올리지 않습니다.
+- 실행 파일은 `out/bin/<Debug|Release>/SDFs.exe`에 생성됩니다. 셰이더 경로를 소스 폴더로 고정하므로 어느 위치에서 실행해도 됩니다.
+- Visual Studio에서는 `out/build/vs2022-x64/SDFs.sln`을 열고 `F5`로 실행합니다.
+- Dear ImGui는 `external/imgui`에 소스가 포함되어 있어 추가 설치가 필요 없습니다.
+- **핫 리로드**: 앱을 켠 채 `shaders/cards/card_XX.hlsl`을 수정·저장하면 바로 반영됩니다. 새 카드를 만드는 방법은 [카드 작성 가이드](docs/CARD_AUTHORING.md)를 참고하세요.
 
-## 실행
+## 조작
 
-Visual Studio에서 실행하려면 생성된 솔루션을 엽니다.
+| 입력 | 동작 |
+|---|---|
+| `←` / `→` | 이전 / 다음 카드 |
+| `Space` | 애니메이션 일시정지 / 재개 |
+| `Esc` | 종료 |
+| 마우스 | ImGui 패널 조작 (장면 카메라 조작은 없음) |
+
+## 프로젝트 구조
 
 ```text
-out/build/vs2022-x64/SDFs.sln
+sdf-playground/
+├─ src/              # C++: App(창·입력·ImGui), Renderer, Coverflow, ShaderManager, FileWatcher
+├─ shaders/
+│  ├─ cards/         # card_01~13.hlsl, 카드 목록(card_files.txt), 카드 설정(card_settings.txt)
+│  ├─ lib/           # 공통 SDF HLSLI 라이브러리
+│  └─ quad.vs.hlsl   # 모든 카드가 쓰는 정점 셰이더
+├─ docs/             # 가이드, ADR(decisions/), 기능 spec(specs/), CHANGELOG
+└─ external/imgui/   # Dear ImGui (vendored)
 ```
 
-`SDFs` 프로젝트가 startup project로 설정되어 있으며, Visual Studio에서 `F5`로 실행할 수 있습니다.
+## 문서
 
-CLI에서 실행하려면 프로젝트 루트에서 다음 명령을 사용합니다.
+- [HLSL 카드 흐름](docs/HLSL_CARD_FLOW.md) — 카드 한 장을 쓰는 가장 단순한 사고 모델
+- [카드 작성 가이드](docs/CARD_AUTHORING.md) — 카드 추가·수정 방법
+- [현재 셰이더 모델](docs/CURRENT_SHADER_MODEL.md) — 카드 렌더링 구조 요약
+- [card_12 3D SDF 가이드](docs/CARD_12_3D_SDF_GUIDE.md) — 가상 카메라, sphere tracing, 볼륨 레이마칭
+- [작업 방식](docs/WORKFLOW.md) · [에이전트 가이드](docs/AGENT_GUIDE.md) · [변경 기록](docs/CHANGELOG.md)
+- [설계 결정 기록(ADR)](docs/decisions/) · [기능 spec](docs/specs/)
 
-```powershell
-Start-Process out\bin\Debug\SDFs.exe -WorkingDirectory $PWD
-```
+## 참고 자료
 
-## 자세한 문서
-
-- [AI Agent Guide](docs/AGENT_GUIDE.md): 저장소 구조, 작업 흐름, git 규칙
-- [Card Authoring Guide](docs/CARD_AUTHORING.md): SDF 카드 추가와 수정 방법
-- [Decision Records](docs/decisions/): 주요 설계 결정 기록
+- [Inigo Quilez — 2D distance functions](https://iquilezles.org/articles/distfunctions2d/) · [3D distance functions](https://iquilezles.org/articles/distfunctions/) · [smooth minimum](https://iquilezles.org/articles/smin/)
+- [The Book of Shaders](https://thebookofshaders.com/) — 랜덤·노이즈(ch.10~11), 셀룰러 노이즈(ch.12), fBm(ch.13: card_11의 원본 예제)
+- [PixelSpiritDeck](https://github.com/patriciogonzalezvivo/PixelSpiritDeck) — 셰이더 하나를 카드 한 장으로 정리하는 아이디어
+- [Dear ImGui](https://github.com/ocornut/imgui)

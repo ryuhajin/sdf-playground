@@ -3,6 +3,7 @@
 날짜는 ISO 8601 (`YYYY-MM-DD`). 최신 항목이 위. 항목은 Conventional Commits 형식.
 
 ## [Unreleased]
+- docs: unify README structure with overview, screenshots, card list and controls (specs/docs-readme-overview)
 - fix(shaders): make card background follow final SDF shape position when enabled (specs/feat-per-card-fill-stroke-color)
 - feat(shaders/ui): split card background gradient space from shape transform (specs/feat-per-card-fill-stroke-color)
 - feat(shaders/ui): add per-card background palette and gradient helpers (specs/feat-per-card-fill-stroke-color)
